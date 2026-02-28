@@ -26,7 +26,11 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.addehd11.art",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -38,6 +42,12 @@
         "googleMaps": {
           "apiKey": "YOUR_GOOGLE_MAPS_API_KEY"
         }
+      }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "50b33974-2cb1-4a95-9cd0-42fd1b8e2c57"
       }
     }
   }
