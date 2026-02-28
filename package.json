@@ -15,7 +15,8 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:e2e:headed": "PWDEBUG=console playwright test --headed",
-    "yarn": "corepack yarn --"
+    "yarn": "corepack yarn --",
+    "eas-build-pre-install": "corepack enable && corepack prepare yarn@4.12.0 --activate"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
