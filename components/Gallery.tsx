@@ -1,5 +1,5 @@
 import { FlatList, Image, Modal, Pressable, Text, View } from 'react-native';
-import { type Painting } from '../../data/paintings';
+import { type Painting } from '../data/paintings';
 
 interface Props {
   paintings: Painting[];

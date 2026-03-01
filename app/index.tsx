@@ -4,18 +4,23 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ViroARSceneNavigator } from '@viro-community/react-viro';
 import { ARScene } from './components/ARScene';
 import { Gallery } from './components/Gallery';
-import { PAINTINGS, type Painting } from './data/paintings';
+import { PAINTINGS, type Painting } from '../data/paintings';
 
 export default function Index() {
   const [selectedPainting, setSelectedPainting] = useState<Painting | null>(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
+  const [detectingWall, setDetectingWall] = useState(false);
 
   return (
     <View className="flex-1 bg-black">
       <ViroARSceneNavigator
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         initialScene={{ scene: ARScene as any }}
-        viroAppProps={{ selectedPainting }}
+        viroAppProps={{
+          selectedPainting,
+          detectingWall,
+          onWallPlaced: () => setDetectingWall(false),
+        }}
         style={StyleSheet.absoluteFill}
       />
 
@@ -30,15 +35,37 @@ export default function Index() {
         </View>
       )}
 
-      <View className="absolute bottom-12 left-0 right-0 items-center gap-2.5">
-        <Pressable className="bg-white px-7 py-3.5 rounded-full" onPress={() => setGalleryOpen(true)}>
-          <Text className="text-base font-bold text-black">🖼  Gallery</Text>
-        </Pressable>
-        {!selectedPainting && (
+      <View className="absolute bottom-12 left-0 right-0 items-center gap-3">
+        <View className="flex-row gap-3">
+          {!detectingWall ? (
+            <Pressable
+              className="bg-[#00e664] px-7 py-3.5 rounded-full"
+              onPress={() => setDetectingWall(true)}
+            >
+              <Text className="text-base font-bold text-black">Detect Wall</Text>
+            </Pressable>
+          ) : (
+            <Pressable
+              className="bg-white/20 border border-white/40 px-7 py-3.5 rounded-full"
+              onPress={() => setDetectingWall(false)}
+            >
+              <Text className="text-base font-bold text-white">Cancel</Text>
+            </Pressable>
+          )}
+
+          <Pressable className="bg-white px-7 py-3.5 rounded-full" onPress={() => setGalleryOpen(true)}>
+            <Text className="text-base font-bold text-black">🖼  Gallery</Text>
+          </Pressable>
+        </View>
+
+        {!selectedPainting && !detectingWall && (
           <Text className="text-white/70 text-[13px]">Select a painting to place on a wall</Text>
         )}
-        {selectedPainting && (
+        {selectedPainting && !detectingWall && (
           <Text className="text-white/70 text-[13px]">Drag to move · Pinch to resize</Text>
+        )}
+        {detectingWall && (
+          <Text className="text-white/70 text-[13px]">Point at a wall, then tap the green outline</Text>
         )}
       </View>
 
