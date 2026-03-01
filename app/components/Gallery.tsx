@@ -1,13 +1,4 @@
-import {
-  Animated,
-  FlatList,
-  Image,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { FlatList, Image, Modal, Pressable, Text, View } from 'react-native';
 import { type Painting } from '../data/paintings';
 
 interface Props {
@@ -20,26 +11,38 @@ interface Props {
 export function Gallery({ paintings, selectedId, onSelect, onClose }: Props) {
   return (
     <Modal transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose} />
-      <View style={styles.sheet}>
-        <View style={styles.handle} />
-        <Text style={styles.heading}>Choose a Painting</Text>
+      <Pressable className="flex-1 bg-black/40" onPress={onClose} />
+      <View className="bg-[#1a1a1a] rounded-t-3xl pb-10 max-h-[70%]">
+        <View className="w-10 h-1 bg-[#555] rounded-full self-center mt-3 mb-1" />
+        <Text className="text-white text-[17px] font-semibold text-center py-3">
+          Choose a Painting
+        </Text>
         <FlatList
           data={paintings}
           keyExtractor={(p) => p.id}
           numColumns={2}
-          contentContainerStyle={styles.grid}
+          contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 12 }}
           renderItem={({ item }) => (
             <Pressable
-              style={[styles.card, selectedId === item.id && styles.cardSelected]}
+              className={`flex-1 m-1.5 rounded-xl bg-[#2a2a2a] overflow-hidden border-2 ${
+                selectedId === item.id ? 'border-white' : 'border-transparent'
+              }`}
               onPress={() => {
                 onSelect(item);
                 onClose();
               }}
             >
-              <Image source={{ uri: item.uri }} style={styles.thumb} resizeMode="cover" />
-              <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
-              <Text style={styles.artist} numberOfLines={1}>{item.artist}</Text>
+              <Image
+                source={{ uri: item.uri }}
+                className="w-full h-[120px] bg-[#333]"
+                resizeMode="cover"
+              />
+              <Text className="text-white text-[13px] font-semibold px-2 pt-1.5" numberOfLines={1}>
+                {item.title}
+              </Text>
+              <Text className="text-[#aaa] text-[11px] px-2 pb-2" numberOfLines={1}>
+                {item.artist}
+              </Text>
             </Pressable>
           )}
         />
@@ -47,67 +50,3 @@ export function Gallery({ paintings, selectedId, onSelect, onClose }: Props) {
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  sheet: {
-    backgroundColor: '#1a1a1a',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: 40,
-    maxHeight: '70%',
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    backgroundColor: '#555',
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginTop: 12,
-    marginBottom: 4,
-  },
-  heading: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '600',
-    textAlign: 'center',
-    paddingVertical: 12,
-  },
-  grid: {
-    paddingHorizontal: 12,
-    paddingBottom: 12,
-  },
-  card: {
-    flex: 1,
-    margin: 6,
-    borderRadius: 12,
-    backgroundColor: '#2a2a2a',
-    overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  cardSelected: {
-    borderColor: '#fff',
-  },
-  thumb: {
-    width: '100%',
-    height: 120,
-    backgroundColor: '#333',
-  },
-  title: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '600',
-    paddingHorizontal: 8,
-    paddingTop: 6,
-  },
-  artist: {
-    color: '#aaa',
-    fontSize: 11,
-    paddingHorizontal: 8,
-    paddingBottom: 8,
-  },
-});
