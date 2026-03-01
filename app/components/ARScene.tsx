@@ -47,6 +47,12 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
     h: number;
   } | null>(null);
 
+  const [crosshairPos, setCrosshairPos] = useState<[number, number, number]>([0, 0, -2]);
+  const [crosshairRot, setCrosshairRot] = useState<[number, number, number]>([0, 0, 0]);
+  const [crosshairScale, setCrosshairScale] = useState<[number, number, number]>([1, 1, 1]);
+  const crosshairRotStart = useRef(0);
+  const crosshairScaleStart = useRef(1);
+
   const wallFoundRef = useRef<(() => void) | undefined>(undefined);
   const activeRef = useRef(false);
   const fallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -65,6 +71,9 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
     if (detectingWall) {
       activeRef.current = true;
       setWallAnchor(null);
+      setCrosshairPos([0, 0, -2]);
+      setCrosshairRot([0, 0, 0]);
+      setCrosshairScale([1, 1, 1]);
 
       fallbackRef.current = setTimeout(() => {
         if (activeRef.current) wallFoundRef.current?.();
@@ -99,12 +108,27 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
 
   const handlePlace = () => {
     if (!selectedPainting) return;
-    const pos = wallAnchor?.position ?? [0, 0, -2];
-    const rot = wallAnchor?.rotation ?? [0, 0, 0];
-    setPosition(pos as [number, number, number]);
-    setRotation(rot as [number, number, number]);
+    setPosition(crosshairPos);
+    setRotation(crosshairRot);
     setScale([1, 1, 1]);
     onWallPlaced?.();
+  };
+
+  const handleCrosshairRotate = (rotateState: number, rotationFactor: number) => {
+    if (rotateState === 1) {
+      crosshairRotStart.current = crosshairRot[2];
+    } else if (rotateState === 2) {
+      setCrosshairRot([0, 0, crosshairRotStart.current + rotationFactor]);
+    }
+  };
+
+  const handleCrosshairPinch = (pinchState: number, scaleFactor: number) => {
+    if (pinchState === 1) {
+      crosshairScaleStart.current = crosshairScale[0];
+    } else if (pinchState === 2) {
+      const next = Math.max(0.5, Math.min(1.5, crosshairScaleStart.current * scaleFactor));
+      setCrosshairScale([next, next, next]);
+    }
   };
 
   const handlePinch = (pinchState: number, scaleFactor: number) => {
@@ -128,8 +152,15 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
     <ViroARScene>
       {detectingWall && (
         <>
-          {/* Static crosshair — always visible immediately so you know detection is active */}
-          <ViroNode position={[0, 0, -2]}>
+          <ViroNode
+            position={crosshairPos}
+            rotation={crosshairRot}
+            scale={crosshairScale}
+            dragType="FixedToWorld"
+            onDrag={(pos) => setCrosshairPos(pos as [number, number, number])}
+            onRotate={handleCrosshairRotate}
+            onPinch={handleCrosshairPinch}
+          >
             <ViroQuad
               width={0.6}
               height={0.005}
