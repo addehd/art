@@ -16,13 +16,14 @@ interface ARSceneProps {
     viroAppProps: {
       selectedPainting: Painting | null;
       detectingWall: boolean;
+      requestPlace: boolean;
       onWallPlaced: () => void;
     };
   };
 }
 
 export function ARScene({ sceneNavigator }: ARSceneProps) {
-  const { selectedPainting, detectingWall, onWallPlaced } = sceneNavigator.viroAppProps ?? {};
+  const { selectedPainting, detectingWall, requestPlace, onWallPlaced } = sceneNavigator.viroAppProps ?? {};
 
   const [position, setPosition] = useState<[number, number, number]>([0, 0, -1.5]);
   const [scale, setScale] = useState<[number, number, number]>([1, 1, 1]);
@@ -36,7 +37,7 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
     if (!materialsReady) {
       ViroMaterials.createMaterials({
         wallOverlay: {
-          diffuseColor: 'rgba(0, 230, 100, 0.25)',
+          diffuseColor: 'rgba(0, 230, 100, 0.55)',
           lightingModel: 'Constant',
         },
       });
@@ -50,6 +51,17 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
     setRotation([0, 0, 0]);
   }, [selectedPainting?.id]);
 
+  useEffect(() => {
+    if (detectingWall) {
+      setPlaneDims(null);
+      anchorRef.current = null;
+    }
+  }, [detectingWall]);
+
+  useEffect(() => {
+    if (requestPlace) handleWallTap();
+  }, [requestPlace]);
+
   const handleAnchor = (anchor: any) => {
     const w = anchor.width ?? anchor.xExtent ?? 1;
     const h = anchor.height ?? anchor.yExtent ?? 1;
@@ -61,9 +73,11 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
   };
 
   const handleWallTap = () => {
-    if (!anchorRef.current || !selectedPainting) return;
-    setPosition(anchorRef.current.position);
-    setRotation(anchorRef.current.rotation);
+    if (!selectedPainting) return;
+    const pos = anchorRef.current?.position ?? [0, 0, -1.5];
+    const rot = anchorRef.current?.rotation ?? [0, 0, 0];
+    setPosition(pos as [number, number, number]);
+    setRotation(rot as [number, number, number]);
     setScale([1, 1, 1]);
     onWallPlaced?.();
   };
@@ -88,22 +102,28 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
   return (
     <ViroARScene>
       {detectingWall && (
-        <ViroARPlane
-          minHeight={0.3}
-          minWidth={0.3}
-          alignment="Vertical"
-          onAnchorFound={handleAnchor}
-          onAnchorUpdated={handleAnchor}
-        >
-          {planeDims && (
+        <>
+          {/* Passive plane detector — runs silently, snaps reticle when wall found */}
+          <ViroARPlane
+            minHeight={0.1}
+            minWidth={0.1}
+            alignment="Vertical"
+            onAnchorFound={handleAnchor}
+            onAnchorUpdated={handleAnchor}
+          />
+
+          {/* Reticle: always visible immediately, anchored to wall when detected */}
+          <ViroNode
+            position={anchorRef.current?.position ?? [0, 0, -1.5]}
+            rotation={anchorRef.current?.rotation ?? [0, 0, 0]}
+          >
             <ViroQuad
-              width={planeDims.w}
-              height={planeDims.h}
+              width={planeDims?.w ?? 1.2}
+              height={planeDims?.h ?? 1.2}
               materials={['wallOverlay']}
-              onClick={handleWallTap}
             />
-          )}
-        </ViroARPlane>
+          </ViroNode>
+        </>
       )}
 
       {selectedPainting && (

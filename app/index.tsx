@@ -10,6 +10,7 @@ export default function Index() {
   const [selectedPainting, setSelectedPainting] = useState<Painting | null>(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [detectingWall, setDetectingWall] = useState(false);
+  const [requestPlace, setRequestPlace] = useState(false);
 
   return (
     <View className="flex-1 bg-black">
@@ -19,7 +20,8 @@ export default function Index() {
         viroAppProps={{
           selectedPainting,
           detectingWall,
-          onWallPlaced: () => setDetectingWall(false),
+          requestPlace,
+          onWallPlaced: () => { setDetectingWall(false); setRequestPlace(false); },
         }}
         style={StyleSheet.absoluteFill}
       />
@@ -45,12 +47,21 @@ export default function Index() {
               <Text className="text-base font-bold text-black">Detect Wall</Text>
             </Pressable>
           ) : (
-            <Pressable
-              className="bg-white/20 border border-white/40 px-7 py-3.5 rounded-full"
-              onPress={() => setDetectingWall(false)}
-            >
-              <Text className="text-base font-bold text-white">Cancel</Text>
-            </Pressable>
+            <>
+              <Pressable
+                className="bg-[#00e664] px-7 py-3.5 rounded-full"
+                onPress={() => setRequestPlace(true)}
+                disabled={requestPlace}
+              >
+                <Text className="text-base font-bold text-black">Place Here</Text>
+              </Pressable>
+              <Pressable
+                className="bg-white/20 border border-white/40 px-7 py-3.5 rounded-full"
+                onPress={() => { setDetectingWall(false); setRequestPlace(false); }}
+              >
+                <Text className="text-base font-bold text-white">Cancel</Text>
+              </Pressable>
+            </>
           )}
 
           <Pressable className="bg-white px-7 py-3.5 rounded-full" onPress={() => setGalleryOpen(true)}>
@@ -65,7 +76,7 @@ export default function Index() {
           <Text className="text-white/70 text-[13px]">Drag to move · Pinch to resize</Text>
         )}
         {detectingWall && (
-          <Text className="text-white/70 text-[13px]">Point at a wall, then tap the green outline</Text>
+          <Text className="text-white/70 text-[13px]">Aim the green area at a wall, then tap Place Here</Text>
         )}
       </View>
 
