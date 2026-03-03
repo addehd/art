@@ -49,9 +49,7 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
 
   const [crosshairPos, setCrosshairPos] = useState<[number, number, number]>([0, 0, -2]);
   const [crosshairRot, setCrosshairRot] = useState<[number, number, number]>([0, 0, 0]);
-  const [crosshairScale, setCrosshairScale] = useState<[number, number, number]>([1, 1, 1]);
   const crosshairRotStart = useRef(0);
-  const crosshairScaleStart = useRef(1);
 
   const wallFoundRef = useRef<(() => void) | undefined>(undefined);
   const activeRef = useRef(false);
@@ -73,7 +71,6 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
       setWallAnchor(null);
       setCrosshairPos([0, 0, -2]);
       setCrosshairRot([0, 0, 0]);
-      setCrosshairScale([1, 1, 1]);
 
       fallbackRef.current = setTimeout(() => {
         if (activeRef.current) wallFoundRef.current?.();
@@ -122,15 +119,6 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
     }
   };
 
-  const handleCrosshairPinch = (pinchState: number, scaleFactor: number) => {
-    if (pinchState === 1) {
-      crosshairScaleStart.current = crosshairScale[0];
-    } else if (pinchState === 2) {
-      const next = Math.max(0.5, Math.min(1.5, crosshairScaleStart.current * scaleFactor));
-      setCrosshairScale([next, next, next]);
-    }
-  };
-
   const handlePinch = (pinchState: number, scaleFactor: number) => {
     if (pinchState === 1) {
       scaleAtPinchStart.current = scale[0];
@@ -155,11 +143,12 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
           <ViroNode
             position={crosshairPos}
             rotation={crosshairRot}
-            scale={crosshairScale}
             dragType="FixedToWorld"
-            onDrag={(pos) => setCrosshairPos(pos as [number, number, number])}
+            onDrag={(pos) => {
+              const p = pos as [number, number, number];
+              setCrosshairPos([p[0], p[1], crosshairPos[2]]);
+            }}
             onRotate={handleCrosshairRotate}
-            onPinch={handleCrosshairPinch}
           >
             <ViroQuad
               width={0.6}
