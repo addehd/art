@@ -19,6 +19,11 @@ ViroMaterials.createMaterials({
     lightingModel: 'Constant',
     opacity: 0.35,
   },
+  invisible: {
+    diffuseColor: '#000000',
+    lightingModel: 'Constant',
+    opacity: 0,
+  },
 });
 
 interface ARSceneProps {
@@ -78,6 +83,8 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
     } else {
       activeRef.current = false;
       setWallAnchor(null);
+      setCrosshairPos([0, 0, -2]);
+      setCrosshairRot([0, 0, 0]);
       if (fallbackRef.current) clearTimeout(fallbackRef.current);
     }
     return () => {
@@ -136,69 +143,68 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
     }
   };
 
+  const planeMaterial = detectingWall ? 'greenTransparent' : 'invisible';
+  const crosshairMaterial = detectingWall ? 'greenSolid' : 'invisible';
+
   return (
     <ViroARScene>
-      {detectingWall && (
-        <>
-          <ViroNode
-            position={crosshairPos}
-            rotation={crosshairRot}
-            dragType="FixedToWorld"
-            onDrag={(pos) => {
-              const p = pos as [number, number, number];
-              setCrosshairPos([p[0], p[1], crosshairPos[2]]);
-            }}
-            onRotate={handleCrosshairRotate}
-          >
-            <ViroQuad
-              width={0.6}
-              height={0.005}
-              position={[0, 0, 0]}
-              materials={['greenSolid']}
-            />
-            <ViroQuad
-              width={0.005}
-              height={0.6}
-              position={[0, 0, 0]}
-              materials={['greenSolid']}
-            />
-          </ViroNode>
+      {/* Keep plane detectors + crosshair always mounted to avoid Viro unmount crash on Cancel */}
+      <ViroNode
+        position={crosshairPos}
+        rotation={crosshairRot}
+        scale={detectingWall ? [1, 1, 1] : [0.001, 0.001, 0.001]}
+        dragType="FixedToWorld"
+        onDrag={detectingWall ? (pos) => {
+          const p = pos as [number, number, number];
+          setCrosshairPos([p[0], p[1], crosshairPos[2]]);
+        } : undefined}
+        onRotate={detectingWall ? handleCrosshairRotate : undefined}
+      >
+        <ViroQuad
+          width={0.6}
+          height={0.005}
+          position={[0, 0, 0]}
+          materials={[crosshairMaterial]}
+        />
+        <ViroQuad
+          width={0.005}
+          height={0.6}
+          position={[0, 0, 0]}
+          materials={[crosshairMaterial]}
+        />
+      </ViroNode>
 
-          {/* Horizontal plane detector (floor) */}
-          <ViroARPlane
-            minHeight={0.2}
-            minWidth={0.2}
-            alignment="Horizontal"
-            onAnchorFound={handleAnchor}
-            onAnchorUpdated={handleAnchor}
-          >
-            <ViroQuad
-              position={[0, 0, 0]}
-              rotation={[0, 0, 0]}
-              width={1}
-              height={1}
-              materials={['greenTransparent']}
-            />
-          </ViroARPlane>
+      <ViroARPlane
+        minHeight={0.2}
+        minWidth={0.2}
+        alignment="Horizontal"
+        onAnchorFound={handleAnchor}
+        onAnchorUpdated={handleAnchor}
+      >
+        <ViroQuad
+          position={[0, 0, 0]}
+          rotation={[0, 0, 0]}
+          width={1}
+          height={1}
+          materials={[planeMaterial]}
+        />
+      </ViroARPlane>
 
-          {/* Vertical plane detector (wall) */}
-          <ViroARPlane
-            minHeight={0.2}
-            minWidth={0.2}
-            alignment="Vertical"
-            onAnchorFound={handleAnchor}
-            onAnchorUpdated={handleAnchor}
-          >
-            <ViroQuad
-              position={[0, 0, 0]}
-              rotation={[0, 0, 0]}
-              width={1}
-              height={1}
-              materials={['greenTransparent']}
-            />
-          </ViroARPlane>
-        </>
-      )}
+      <ViroARPlane
+        minHeight={0.2}
+        minWidth={0.2}
+        alignment="Vertical"
+        onAnchorFound={handleAnchor}
+        onAnchorUpdated={handleAnchor}
+      >
+        <ViroQuad
+          position={[0, 0, 0]}
+          rotation={[0, 0, 0]}
+          width={1}
+          height={1}
+          materials={[planeMaterial]}
+        />
+      </ViroARPlane>
 
       {selectedPainting && (
         <ViroNode
@@ -206,7 +212,10 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
           scale={scale}
           rotation={rotation}
           dragType="FixedToWorld"
-          onDrag={(pos) => setPosition(pos as [number, number, number])}
+          onDrag={(pos) => {
+            const p = pos as [number, number, number];
+            setPosition([p[0], p[1], position[2]]);
+          }}
           onPinch={handlePinch}
           onRotate={handleRotate}
         >

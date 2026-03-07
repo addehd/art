@@ -66,7 +66,7 @@ export default function Index() {
               )}
               <Pressable
                 className="bg-white/20 border border-white/40 px-7 py-3.5 rounded-full"
-                onPress={() => { setDetectingWall(false); setWallFound(false); setRequestPlace(false); }}
+                onPress={() => { setDetectingWall(false); setWallFound(false); setRequestPlace(false); setSelectedPainting(null); }}
               >
                 <Text className="text-base font-bold text-white">Cancel</Text>
               </Pressable>
