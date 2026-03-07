@@ -61,6 +61,7 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
   const fallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scaleAtPinchStart = useRef(1);
   const rotationAtStart = useRef(0);
+  const crosshairLockedRef = useRef(false);
 
   wallFoundRef.current = onWallFound;
 
@@ -73,6 +74,7 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
   useEffect(() => {
     if (detectingWall) {
       activeRef.current = true;
+      crosshairLockedRef.current = false;
       setWallAnchor(null);
       setCrosshairPos([0, 0, -2]);
       setCrosshairRot([0, 0, 0]);
@@ -122,6 +124,7 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
     if (rotateState === 1) {
       crosshairRotStart.current = crosshairRot[2];
     } else if (rotateState === 2) {
+      crosshairLockedRef.current = true;
       setCrosshairRot([0, 0, crosshairRotStart.current + rotationFactor]);
     }
   };
@@ -146,8 +149,29 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
   const planeMaterial = detectingWall ? 'greenTransparent' : 'invisible';
   const crosshairMaterial = detectingWall ? 'greenSolid' : 'invisible';
 
+  const handleCameraTransform = (update: {
+    cameraTransform?: { position?: number[]; rotation?: number[]; forward?: number[] };
+    position?: number[];
+    pos?: number[];
+    forward?: number[];
+    rotation?: number[];
+    rot?: number[];
+  }) => {
+    if (!detectingWall || crosshairLockedRef.current) return;
+    const ct = update.cameraTransform ?? update;
+    const pos = ct.position ?? ct.pos ?? update.position ?? update.pos;
+    const forward = ct.forward ?? update.forward;
+    if (!pos || !forward || pos.length < 3 || forward.length < 3) return;
+    const [px, py, pz] = pos;
+    const [fx, fy, fz] = forward;
+    const dist = 2;
+    setCrosshairPos([px + fx * dist, py + fy * dist, pz + fz * dist]);
+    const rot = ct.rotation ?? ct.rot ?? update.rotation ?? update.rot;
+    if (rot && rot.length >= 3) setCrosshairRot(rot as [number, number, number]);
+  };
+
   return (
-    <ViroARScene>
+    <ViroARScene onCameraTransformUpdate={handleCameraTransform}>
       {/* Keep plane detectors + crosshair always mounted to avoid Viro unmount crash on Cancel */}
       <ViroNode
         position={crosshairPos}
@@ -155,6 +179,7 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
         scale={detectingWall ? [1, 1, 1] : [0.001, 0.001, 0.001]}
         dragType="FixedToWorld"
         onDrag={detectingWall ? (pos) => {
+          crosshairLockedRef.current = true;
           const p = pos as [number, number, number];
           setCrosshairPos([p[0], p[1], crosshairPos[2]]);
         } : undefined}
