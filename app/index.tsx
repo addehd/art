@@ -12,6 +12,7 @@ export default function Index() {
   const [detectingWall, setDetectingWall] = useState(false);
   const [wallFound, setWallFound] = useState(false);
   const [requestPlace, setRequestPlace] = useState(false);
+  const [resetTrigger, setResetTrigger] = useState(0);
 
   return (
     <View className="flex-1 bg-black">
@@ -22,6 +23,7 @@ export default function Index() {
           selectedPainting,
           detectingWall,
           requestPlace,
+          resetTrigger,
           onWallFound: () => setWallFound(true),
           onWallPlaced: () => { setDetectingWall(false); setWallFound(false); setRequestPlace(false); },
         }}
@@ -66,7 +68,13 @@ export default function Index() {
               )}
               <Pressable
                 className="bg-white/20 border border-white/40 px-7 py-3.5 rounded-full"
-                onPress={() => { setDetectingWall(false); setWallFound(false); setRequestPlace(false); setSelectedPainting(null); }}
+                onPress={() => {
+                  setDetectingWall(false);
+                  setWallFound(false);
+                  setRequestPlace(false);
+                  setSelectedPainting(null);
+                  setResetTrigger((t) => t + 1);
+                }}
               >
                 <Text className="text-base font-bold text-white">Cancel</Text>
               </Pressable>

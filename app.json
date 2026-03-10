@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "my-expo-app",
-    "slug": "my-expo-app",
+    "name": "Maria",
+    "slug": "maria-art",
     "version": "1.0.0",
-    "scheme": "my-expo-app",
+    "scheme": "maria-art",
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro"

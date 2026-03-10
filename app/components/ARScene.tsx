@@ -32,6 +32,7 @@ interface ARSceneProps {
       selectedPainting: Painting | null;
       detectingWall: boolean;
       requestPlace: boolean;
+      resetTrigger?: number;
       onWallFound: () => void;
       onWallPlaced: () => void;
     };
@@ -39,7 +40,7 @@ interface ARSceneProps {
 }
 
 export function ARScene({ sceneNavigator }: ARSceneProps) {
-  const { selectedPainting, detectingWall, requestPlace, onWallFound, onWallPlaced } =
+  const { selectedPainting, detectingWall, requestPlace, resetTrigger = 0, onWallFound, onWallPlaced } =
     sceneNavigator.viroAppProps ?? {};
 
   const [position, setPosition] = useState<[number, number, number]>([0, 0, -2]);
@@ -55,6 +56,8 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
   const [crosshairPos, setCrosshairPos] = useState<[number, number, number]>([0, 0, -2]);
   const [crosshairRot, setCrosshairRot] = useState<[number, number, number]>([0, 0, 0]);
   const crosshairRotStart = useRef(0);
+  const crosshairPosRef = useRef<[number, number, number]>([0, 0, -2]);
+  const crosshairRotRef = useRef<[number, number, number]>([0, 0, 0]);
 
   const wallFoundRef = useRef<(() => void) | undefined>(undefined);
   const activeRef = useRef(false);
@@ -64,12 +67,36 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
   const crosshairLockedRef = useRef(false);
 
   wallFoundRef.current = onWallFound;
+  crosshairPosRef.current = crosshairPos;
+  crosshairRotRef.current = crosshairRot;
 
   useEffect(() => {
     setPosition([0, 0, -2]);
     setScale([1, 1, 1]);
     setRotation([0, 0, 0]);
   }, [selectedPainting?.id]);
+
+  const resetAll = () => {
+    activeRef.current = false;
+    crosshairLockedRef.current = false;
+    scaleAtPinchStart.current = 1;
+    rotationAtStart.current = 0;
+    crosshairRotStart.current = 0;
+    if (fallbackRef.current) {
+      clearTimeout(fallbackRef.current);
+      fallbackRef.current = null;
+    }
+    setPosition([0, 0, -2]);
+    setScale([1, 1, 1]);
+    setRotation([0, 0, 0]);
+    setWallAnchor(null);
+    setCrosshairPos([0, 0, -2]);
+    setCrosshairRot([0, 0, 0]);
+  };
+
+  useEffect(() => {
+    resetAll();
+  }, [resetTrigger]);
 
   useEffect(() => {
     if (detectingWall) {
@@ -114,8 +141,8 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
 
   const handlePlace = () => {
     if (!selectedPainting) return;
-    setPosition(crosshairPos);
-    setRotation(crosshairRot);
+    setPosition([...crosshairPosRef.current]);
+    setRotation([...crosshairRotRef.current]);
     setScale([1, 1, 1]);
     onWallPlaced?.();
   };
