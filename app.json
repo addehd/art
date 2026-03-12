@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Maria",
-    "slug": "maria-art",
+    "slug": "my-expo-app",
     "version": "1.0.0",
     "scheme": "maria-art",
     "web": {
@@ -57,6 +57,7 @@
       "eas": {
         "projectId": "50b33974-2cb1-4a95-9cd0-42fd1b8e2c57"
       }
-    }
+    },
+    "owner": "addehd11"
   }
 }

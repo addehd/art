@@ -1,15 +1,22 @@
 {
-    "build": {
-      "development": {
-        "developmentClient": true,
-        "distribution": "internal"
-      }
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
     },
-    "submit": {
-      "production": {
-        "ios": {
-          "appleTeamId": "ZTJAQ6HB3A"
-        }
+    "production": {
+      "distribution": "store",
+      "autoIncrement": true
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleTeamId": "ZTJAQ6HB3A"
       }
     }
+  },
+  "cli": {
+    "appVersionSource": "remote"
   }
+}

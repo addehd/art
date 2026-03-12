@@ -2,7 +2,7 @@ import '../global.css';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ViroARSceneNavigator } from '@viro-community/react-viro';
-import { ARScene } from './components/ARScene';
+import { ARScene, type ARDebugState } from './components/ARScene';
 import { Gallery } from './components/Gallery';
 import { PAINTINGS, type Painting } from '../data/paintings';
 
@@ -13,6 +13,7 @@ export default function Index() {
   const [wallFound, setWallFound] = useState(false);
   const [requestPlace, setRequestPlace] = useState(false);
   const [resetTrigger, setResetTrigger] = useState(0);
+  const [debugState, setDebugState] = useState<ARDebugState | null>(null);
 
   return (
     <View className="flex-1 bg-black">
@@ -26,9 +27,41 @@ export default function Index() {
           resetTrigger,
           onWallFound: () => setWallFound(true),
           onWallPlaced: () => { setDetectingWall(false); setWallFound(false); setRequestPlace(false); },
+          onDebugState: setDebugState,
         }}
         style={StyleSheet.absoluteFill}
       />
+
+      {__DEV__ && debugState && (
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            {
+              top: 100,
+              left: 8,
+              right: 8,
+              backgroundColor: 'rgba(0,0,0,0.75)',
+              padding: 8,
+              borderRadius: 8,
+              maxHeight: 120,
+            },
+          ]}
+          pointerEvents="none"
+        >
+          <Text style={{ color: '#00e664', fontSize: 11, fontFamily: 'monospace' }}>
+            pos: {debugState.position.map((n) => n.toFixed(2)).join(', ')}
+          </Text>
+          <Text style={{ color: '#00e664', fontSize: 11, fontFamily: 'monospace' }}>
+            cross: {debugState.crosshairPos.map((n) => n.toFixed(2)).join(', ')}
+          </Text>
+          <Text style={{ color: '#00e664', fontSize: 11, fontFamily: 'monospace' }}>
+            locked: {debugState.crosshairLocked ? 'yes' : 'no'}
+          </Text>
+          <Text style={{ color: '#00e664', fontSize: 11, fontFamily: 'monospace' }}>
+            wall: {debugState.wallAnchor ? 'set' : 'null'}
+          </Text>
+        </View>
+      )}
 
       {selectedPainting && (
         <View className="absolute top-[60px] self-center flex-row items-center gap-2.5 bg-black/55 px-4 py-2 rounded-full">
