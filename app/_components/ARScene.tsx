@@ -87,8 +87,8 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
   const [crosshairLocked, setCrosshairLocked] = useState(false);
 
   wallFoundRef.current = onWallFound;
-  crosshairPosRef.current = crosshairPos;
-  crosshairRotRef.current = crosshairRot;
+  // Refs are updated in handleCameraTransform, onDrag, handleCrosshairRotate, resetAll.
+  // Do NOT sync from state here – it overwrites with stale state when Place Here is tapped.
 
   useEffect(() => {
     setPosition([0, 0, -2]);
@@ -111,6 +111,8 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
     setScale([1, 1, 1]);
     setRotation([0, 0, 0]);
     setWallAnchor(null);
+    crosshairPosRef.current = [0, 0, -2];
+    crosshairRotRef.current = [0, 0, 0];
     setCrosshairPos([0, 0, -2]);
     setCrosshairRot([0, 0, 0]);
   };
@@ -125,6 +127,8 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
       crosshairLockedRef.current = false;
       setCrosshairLocked(false);
       setWallAnchor(null);
+      crosshairPosRef.current = [0, 0, -2];
+      crosshairRotRef.current = [0, 0, 0];
       setCrosshairPos([0, 0, -2]);
       setCrosshairRot([0, 0, 0]);
 
@@ -136,6 +140,8 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
       crosshairLockedRef.current = false;
       setCrosshairLocked(false);
       setWallAnchor(null);
+      crosshairPosRef.current = [0, 0, -2];
+      crosshairRotRef.current = [0, 0, 0];
       setCrosshairPos([0, 0, -2]);
       setCrosshairRot([0, 0, 0]);
       if (fallbackRef.current) clearTimeout(fallbackRef.current);
@@ -161,12 +167,6 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
     }
   }, [position, crosshairPos, crosshairLocked, wallAnchor, onDebugState]);
 
-  useEffect(() => {
-    if (__DEV__) {
-      console.log('[ARScene] position changed:', position.map((n) => n.toFixed(2)).join(', '));
-    }
-  }, [position]);
-
   const handleAnchor = (anchor: any) => {
     if (!activeRef.current) return;
     const w = anchor.width ?? anchor.xExtent ?? 1;
@@ -184,9 +184,6 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
     if (!selectedPainting) return;
     const pos = crosshairPosRef.current;
     const rot = crosshairRotRef.current;
-    if (__DEV__) {
-      console.log('[AR debug] handlePlace: crosshairPos=', pos, 'crosshairRot=', rot, 'wallAnchor unused=', !!wallAnchor);
-    }
     setPosition([...pos]);
     setRotation([...rot]);
     setScale([1, 1, 1]);
@@ -199,7 +196,9 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
     } else if (rotateState === 2) {
       crosshairLockedRef.current = true;
       setCrosshairLocked(true);
-      setCrosshairRot([0, 0, crosshairRotStart.current + rotationFactor]);
+      const newRot: [number, number, number] = [0, 0, crosshairRotStart.current + rotationFactor];
+      crosshairRotRef.current = newRot;
+      setCrosshairRot(newRot);
     }
   };
 
@@ -231,12 +230,7 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
     rotation?: number[];
     rot?: number[];
   }) => {
-    if (!detectingWall || crosshairLockedRef.current) {
-      if (__DEV__ && detectingWall && crosshairLockedRef.current) {
-        console.log('[AR debug] handleCameraTransform early return: crosshair locked');
-      }
-      return;
-    }
+    if (!detectingWall || crosshairLockedRef.current) return;
     const ct = update.cameraTransform ?? update;
     const pos = ct.position ?? ct.pos ?? update.position ?? update.pos;
     const forward = ct.forward ?? update.forward;
@@ -244,9 +238,15 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
     const [px, py, pz] = pos;
     const [fx, fy, fz] = forward;
     const dist = 2;
-    setCrosshairPos([px + fx * dist, py + fy * dist, pz + fz * dist]);
+    const newPos: [number, number, number] = [px + fx * dist, py + fy * dist, pz + fz * dist];
+    crosshairPosRef.current = newPos;
+    setCrosshairPos(newPos);
     const rot = ct.rotation ?? ct.rot ?? update.rotation ?? update.rot;
-    if (rot && rot.length >= 3) setCrosshairRot(rot as [number, number, number]);
+    if (rot && rot.length >= 3) {
+      const newRot = rot as [number, number, number];
+      crosshairRotRef.current = newRot;
+      setCrosshairRot(newRot);
+    }
   };
 
   return (
@@ -261,7 +261,9 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
           crosshairLockedRef.current = true;
           setCrosshairLocked(true);
           const p = pos as [number, number, number];
-          setCrosshairPos([p[0], p[1], crosshairPos[2]]);
+          const newPos: [number, number, number] = [p[0], p[1], crosshairPosRef.current[2]];
+          crosshairPosRef.current = newPos;
+          setCrosshairPos(newPos);
         } : undefined}
         onRotate={detectingWall ? handleCrosshairRotate : undefined}
       >

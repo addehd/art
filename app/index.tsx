@@ -2,8 +2,8 @@ import '../global.css';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ViroARSceneNavigator } from '@viro-community/react-viro';
-import { ARScene, type ARDebugState } from './components/ARScene';
-import { Gallery } from './components/Gallery';
+import { ARScene, type ARDebugState } from './_components/ARScene';
+import { Gallery } from './_components/Gallery';
 import { PAINTINGS, type Painting } from '../data/paintings';
 
 export default function Index() {
