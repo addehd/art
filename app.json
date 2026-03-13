@@ -2,7 +2,7 @@
   "expo": {
     "name": "Maria",
     "slug": "my-expo-app",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "scheme": "maria-art",
     "web": {
       "favicon": "./assets/favicon.png",
