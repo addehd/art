@@ -54,12 +54,13 @@ interface ARSceneProps {
       onWallFound: () => void;
       onWallPlaced: () => void;
       onDebugState?: (state: ARDebugState) => void;
+      onDistanceUpdate?: (distance: number | null) => void;
     };
   };
 }
 
 export function ARScene({ sceneNavigator }: ARSceneProps) {
-  const { selectedPainting, detectingWall, requestPlace, resetTrigger = 0, onWallFound, onWallPlaced, onDebugState } =
+  const { selectedPainting, detectingWall, requestPlace, resetTrigger = 0, onWallFound, onWallPlaced, onDebugState, onDistanceUpdate } =
     sceneNavigator.viroAppProps ?? {};
 
   const [position, setPosition] = useState<[number, number, number]>([0, 0, -2]);
@@ -85,6 +86,7 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
   const rotationAtStart = useRef(0);
   const crosshairLockedRef = useRef(false);
   const [crosshairLocked, setCrosshairLocked] = useState(false);
+  const cameraPosRef = useRef<[number, number, number]>([0, 0, 0]);
 
   wallFoundRef.current = onWallFound;
   // Refs are updated in handleCameraTransform, onDrag, handleCrosshairRotate, resetAll.
@@ -187,6 +189,11 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
     setPosition([...pos]);
     setRotation([...rot]);
     setScale([1, 1, 1]);
+    const cam = cameraPosRef.current;
+    if (onDistanceUpdate) {
+      const d = Math.sqrt((pos[0] - cam[0]) ** 2 + (pos[1] - cam[1]) ** 2 + (pos[2] - cam[2]) ** 2);
+      onDistanceUpdate(d);
+    }
     onWallPlaced?.();
   };
 
@@ -237,6 +244,7 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
     if (!pos || !forward || pos.length < 3 || forward.length < 3) return;
     const [px, py, pz] = pos;
     const [fx, fy, fz] = forward;
+    cameraPosRef.current = [px, py, pz];
     const dist = 2;
     const newPos: [number, number, number] = [px + fx * dist, py + fy * dist, pz + fz * dist];
     crosshairPosRef.current = newPos;
@@ -246,6 +254,11 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
       const newRot = rot as [number, number, number];
       crosshairRotRef.current = newRot;
       setCrosshairRot(newRot);
+    }
+    if (onDistanceUpdate) {
+      const [tx, ty, tz] = newPos;
+      const d = Math.sqrt((tx - px) ** 2 + (ty - py) ** 2 + (tz - pz) ** 2);
+      onDistanceUpdate(d);
     }
   };
 

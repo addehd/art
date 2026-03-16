@@ -14,6 +14,9 @@ export default function Index() {
   const [requestPlace, setRequestPlace] = useState(false);
   const [resetTrigger, setResetTrigger] = useState(0);
   const [debugState, setDebugState] = useState<ARDebugState | null>(null);
+  const [distance, setDistance] = useState<number | null>(null);
+
+  console.log("hej hej hej");
 
   return (
     <View className="flex-1 bg-black">
@@ -28,6 +31,7 @@ export default function Index() {
           onWallFound: () => setWallFound(true),
           onWallPlaced: () => { setDetectingWall(false); setWallFound(false); setRequestPlace(false); },
           onDebugState: setDebugState,
+          onDistanceUpdate: setDistance,
         }}
         style={StyleSheet.absoluteFill}
       />
@@ -63,16 +67,26 @@ export default function Index() {
         </View>
       )}
 
-      {selectedPainting && (
-        <View className="absolute top-[60px] self-center flex-row items-center gap-2.5 bg-black/55 px-4 py-2 rounded-full">
-          <Text className="text-white text-[15px] font-semibold max-w-[220px]" numberOfLines={1}>
-            {selectedPainting.title}
-          </Text>
-          <Pressable onPress={() => setSelectedPainting(null)} hitSlop={12}>
-            <Text className="text-white text-base">✕</Text>
-          </Pressable>
-        </View>
-      )}
+      <View className="absolute top-14 left-0 right-0 items-center gap-2" pointerEvents="box-none">
+        {(detectingWall || selectedPainting) && distance !== null && (
+          <View className="flex-row items-center gap-1.5 bg-black/60 px-4 py-1.5 rounded-full" pointerEvents="none">
+            <Text className="text-[#00e664] text-xs">◎</Text>
+            <Text className="text-white text-xs font-semibold">{distance.toFixed(2)} m</Text>
+            <Text className="text-white/50 text-xs">to wall</Text>
+          </View>
+        )}
+
+        {selectedPainting && (
+          <View className="flex-row items-center gap-2.5 bg-black/55 px-4 py-2 rounded-full">
+            <Text className="text-white text-[15px] font-semibold max-w-[220px]" numberOfLines={1}>
+              {selectedPainting.title}
+            </Text>
+            <Pressable onPress={() => setSelectedPainting(null)} hitSlop={12}>
+              <Text className="text-white text-base">✕</Text>
+            </Pressable>
+          </View>
+        )}
+      </View>
 
       <View className="absolute bottom-12 left-0 right-0 items-center gap-3">
         <View className="flex-row gap-3">
