@@ -1,15 +1,5 @@
-/**
- * AR Scene – placement verification notes (Phase 1)
- *
- * 1. Crosshair locked: handleCameraTransform returns early when crosshairLockedRef.current
- *    (L184). Lock set in handleCrosshairRotate (L154) and onDrag (L209); cleared in resetAll
- *    and when detectingWall becomes true.
- * 2. wallAnchor unused for placement: handlePlace (L139-146) uses only crosshairPosRef and
- *    crosshairRotRef. wallAnchor is never passed to setPosition/setRotation.
- * 3. Initial state: position defaults to [0,0,-2] (L45); reset on selectedPainting change (L71-75).
- *    Image appears at default until "Place Here" copies crosshair position.
- */
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { unstable_batchedUpdates } from 'react-native';
 import {
   ViroARPlane,
   ViroARScene,
@@ -17,6 +7,7 @@ import {
   ViroMaterials,
   ViroNode,
   ViroQuad,
+  ViroSphere,
 } from '@viro-community/react-viro';
 import { type Painting } from '../../data/paintings';
 
@@ -26,14 +17,24 @@ ViroMaterials.createMaterials({
     lightingModel: 'Constant',
   },
   greenTransparent: {
-    diffuseColor: '#00E664',
+    diffuseColor: '#00E66459',
     lightingModel: 'Constant',
-    opacity: 0.35,
   },
   invisible: {
-    diffuseColor: '#000000',
+    diffuseColor: '#00000000',
     lightingModel: 'Constant',
-    opacity: 0,
+  },
+  crosshairWhite: {
+    diffuseColor: '#FFFFFFCC',
+    lightingModel: 'Constant',
+  },
+  crosshairCyan: {
+    diffuseColor: '#83FFF5CC',
+    lightingModel: 'Constant',
+  },
+  crosshairPurple: {
+    diffuseColor: '#A381FACC',
+    lightingModel: 'Constant',
   },
 });
 
@@ -42,6 +43,9 @@ export interface ARDebugState {
   crosshairPos: [number, number, number];
   crosshairLocked: boolean;
   wallAnchor: boolean;
+  cameraPos: [number, number, number];
+  forward: [number, number, number];
+  distance: number;
 }
 
 interface ARSceneProps {
@@ -80,15 +84,28 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
   const crosshairRotRef = useRef<[number, number, number]>([0, 0, 0]);
 
   const wallFoundRef = useRef<(() => void) | undefined>(undefined);
+  const detectingWallRef = useRef(detectingWall);
+  const onDistanceUpdateRef = useRef(onDistanceUpdate);
   const activeRef = useRef(false);
   const fallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scaleAtPinchStart = useRef(1);
   const rotationAtStart = useRef(0);
+  // Ref mirrors the state so handleCameraTransform (Viro callback) reads the current value
+  // without closing over stale state.
   const crosshairLockedRef = useRef(false);
   const [crosshairLocked, setCrosshairLocked] = useState(false);
   const cameraPosRef = useRef<[number, number, number]>([0, 0, 0]);
+  const lastLogRef = useRef<number>(0);
+  const lastCrosshairUpdateRef = useRef<number>(0);
+  const [cameraDebug, setCameraDebug] = useState<{ cameraPos: [number, number, number]; forward: [number, number, number]; distance: number }>({
+    cameraPos: [0, 0, 0],
+    forward: [0, 0, 0],
+    distance: 0,
+  });
 
   wallFoundRef.current = onWallFound;
+  detectingWallRef.current = detectingWall;
+  onDistanceUpdateRef.current = onDistanceUpdate;
   // Refs are updated in handleCameraTransform, onDrag, handleCrosshairRotate, resetAll.
   // Do NOT sync from state here – it overwrites with stale state when Place Here is tapped.
 
@@ -134,6 +151,8 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
       setCrosshairPos([0, 0, -2]);
       setCrosshairRot([0, 0, 0]);
 
+      // Some devices never fire onAnchorFound; fire onWallFound after 5s so the
+      // UI never gets permanently stuck on "Scanning…".
       fallbackRef.current = setTimeout(() => {
         if (activeRef.current) wallFoundRef.current?.();
       }, 5000);
@@ -165,9 +184,12 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
         crosshairPos,
         crosshairLocked,
         wallAnchor: !!wallAnchor,
+        cameraPos: cameraDebug.cameraPos,
+        forward: cameraDebug.forward,
+        distance: cameraDebug.distance,
       });
     }
-  }, [position, crosshairPos, crosshairLocked, wallAnchor, onDebugState]);
+  }, [position, crosshairPos, crosshairLocked, wallAnchor, cameraDebug, onDebugState]);
 
   const handleAnchor = (anchor: any) => {
     if (!activeRef.current) return;
@@ -176,6 +198,12 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
     const pos: [number, number, number] = anchor.position ?? [0, 0, -2];
     const rot: [number, number, number] = anchor.rotation ?? [0, 0, 0];
 
+    if (__DEV__) {
+      const d = cameraPosRef.current
+        ? Math.sqrt((pos[0] - cameraPosRef.current[0]) ** 2 + (pos[1] - cameraPosRef.current[1]) ** 2 + (pos[2] - cameraPosRef.current[2]) ** 2)
+        : null;
+      console.log('[AR] wall anchor', { position: pos, rotation: rot, width: w, height: h, distanceToCamera: d?.toFixed(2) });
+    }
     setWallAnchor({ position: pos, rotation: rot, w, h });
 
     if (fallbackRef.current) clearTimeout(fallbackRef.current);
@@ -227,9 +255,8 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
   };
 
   const planeMaterial = detectingWall ? 'greenTransparent' : 'invisible';
-  const crosshairMaterial = detectingWall ? 'greenSolid' : 'invisible';
 
-  const handleCameraTransform = (update: {
+  const handleCameraTransform = useCallback((update: {
     cameraTransform?: { position?: number[]; rotation?: number[]; forward?: number[] };
     position?: number[];
     pos?: number[];
@@ -237,7 +264,9 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
     rotation?: number[];
     rot?: number[];
   }) => {
-    if (!detectingWall || crosshairLockedRef.current) return;
+    // Stop following the camera once the user has manually dragged or rotated
+    // the crosshair so their chosen position isn't overwritten every frame.
+    if (!detectingWallRef.current || crosshairLockedRef.current) return;
     const ct = update.cameraTransform ?? update;
     const pos = ct.position ?? ct.pos ?? update.position ?? update.pos;
     const forward = ct.forward ?? update.forward;
@@ -245,22 +274,32 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
     const [px, py, pz] = pos;
     const [fx, fy, fz] = forward;
     cameraPosRef.current = [px, py, pz];
-    const dist = 2;
+    const dist = 2; // Project crosshair 2 m in front of the camera
     const newPos: [number, number, number] = [px + fx * dist, py + fy * dist, pz + fz * dist];
     crosshairPosRef.current = newPos;
-    setCrosshairPos(newPos);
-    const rot = ct.rotation ?? ct.rot ?? update.rotation ?? update.rot;
-    if (rot && rot.length >= 3) {
-      const newRot = rot as [number, number, number];
-      crosshairRotRef.current = newRot;
-      setCrosshairRot(newRot);
-    }
-    if (onDistanceUpdate) {
+
+    const now = Date.now();
+    // Throttle React state updates to ~30fps to avoid flooding the render queue.
+    // The refs above are always current for logic; state drives visual updates only.
+    if (now - lastCrosshairUpdateRef.current > 33) {
+      lastCrosshairUpdateRef.current = now;
+      const rot = ct.rotation ?? ct.rot ?? update.rotation ?? update.rot;
+      const newRot = rot && rot.length >= 3 ? (rot as [number, number, number]) : null;
+      if (newRot) crosshairRotRef.current = newRot;
       const [tx, ty, tz] = newPos;
       const d = Math.sqrt((tx - px) ** 2 + (ty - py) ** 2 + (tz - pz) ** 2);
-      onDistanceUpdate(d);
+      const logNow = __DEV__ && now - lastLogRef.current > 500;
+      if (logNow) lastLogRef.current = now;
+      // Batch all setState calls so Viro's native callback never triggers nested
+      // React reconciliations that exceed the max update depth.
+      unstable_batchedUpdates(() => {
+        setCrosshairPos(newPos);
+        if (newRot) setCrosshairRot(newRot);
+        if (onDistanceUpdateRef.current) onDistanceUpdateRef.current(d);
+        if (logNow) setCameraDebug({ cameraPos: [px, py, pz], forward: [fx, fy, fz], distance: d });
+      });
     }
-  };
+  }, []);
 
   return (
     <ViroARScene onCameraTransformUpdate={handleCameraTransform}>
@@ -274,26 +313,35 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
           crosshairLockedRef.current = true;
           setCrosshairLocked(true);
           const p = pos as [number, number, number];
+          // Clamp Z to the current depth so the crosshair slides on the wall
+          // plane rather than drifting toward or away from the camera.
           const newPos: [number, number, number] = [p[0], p[1], crosshairPosRef.current[2]];
           crosshairPosRef.current = newPos;
           setCrosshairPos(newPos);
         } : undefined}
         onRotate={detectingWall ? handleCrosshairRotate : undefined}
       >
-        <ViroQuad
-          width={0.6}
-          height={0.005}
-          position={[0, 0, 0]}
-          materials={[crosshairMaterial]}
-        />
-        <ViroQuad
-          width={0.005}
-          height={0.6}
-          position={[0, 0, 0]}
-          materials={[crosshairMaterial]}
-        />
+        {/* Corner brackets – white */}
+        <ViroQuad width={0.07} height={0.002} position={[-0.175, 0.21, 0]} materials={['crosshairWhite']} />
+        <ViroQuad width={0.002} height={0.07} position={[-0.21, 0.175, 0]} materials={['crosshairWhite']} />
+        <ViroQuad width={0.07} height={0.002} position={[0.175, 0.21, 0]} materials={['crosshairWhite']} />
+        <ViroQuad width={0.002} height={0.07} position={[0.21, 0.175, 0]} materials={['crosshairWhite']} />
+        <ViroQuad width={0.07} height={0.002} position={[-0.175, -0.21, 0]} materials={['crosshairWhite']} />
+        <ViroQuad width={0.002} height={0.07} position={[-0.21, -0.175, 0]} materials={['crosshairWhite']} />
+        <ViroQuad width={0.07} height={0.002} position={[0.175, -0.21, 0]} materials={['crosshairWhite']} />
+        <ViroQuad width={0.002} height={0.07} position={[0.21, -0.175, 0]} materials={['crosshairWhite']} />
+        {/* Inner rectangle outline – cyan */}
+        <ViroQuad width={0.273} height={0.002} position={[0, 0.137, 0]} materials={['crosshairCyan']} />
+        <ViroQuad width={0.273} height={0.002} position={[0, -0.137, 0]} materials={['crosshairCyan']} />
+        <ViroQuad width={0.002} height={0.273} position={[-0.137, 0, 0]} materials={['crosshairCyan']} />
+        <ViroQuad width={0.002} height={0.273} position={[0.137, 0, 0]} materials={['crosshairCyan']} />
+        {/* Center circle – purple */}
+        <ViroSphere radius={0.008} position={[0, 0, 0]} materials={['crosshairPurple']} />
       </ViroNode>
 
+      {/* Two plane detectors: Horizontal catches floors/ceilings, Vertical catches walls.
+          onAnchorUpdated reuses handleAnchor so the anchor position stays fresh as
+          the device refines its understanding of the surface. */}
       <ViroARPlane
         minHeight={0.2}
         minWidth={0.2}

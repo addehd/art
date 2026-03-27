@@ -1,4 +1,6 @@
-import { FlatList, Image, Modal, Pressable, Text, View } from 'react-native';
+import { useRef } from 'react';
+import { Animated, FlatList, Image, Modal, PanResponder, Pressable, Text, TouchableWithoutFeedback, View, Dimensions } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { type Painting } from '../../data/paintings';
 
 interface Props {
@@ -8,23 +10,56 @@ interface Props {
   onClose: () => void;
 }
 
-export function Gallery({ paintings, selectedId, onSelect, onClose }: Props) {
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const ITEM_WIDTH = SCREEN_WIDTH * 0.4;
+const ITEM_HEIGHT = ITEM_WIDTH * 1.2;
+
+export default function Gallery({ paintings, selectedId, onSelect, onClose }: Props) {
+  const translateY = useRef(new Animated.Value(0)).current;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, g) => g.dy > 5,
+      onPanResponderMove: (_, g) => {
+        if (g.dy > 0) translateY.setValue(g.dy);
+      },
+      onPanResponderRelease: (_, g) => {
+        if (g.dy > 100 || g.vy > 0.5) {
+          Animated.timing(translateY, { toValue: 600, duration: 200, useNativeDriver: true }).start(onClose);
+        } else {
+          Animated.spring(translateY, { toValue: 0, useNativeDriver: true }).start();
+        }
+      },
+    })
+  ).current;
+
   return (
     <Modal transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable className="flex-1 bg-black/40" onPress={onClose} />
-      <View className="bg-[#1a1a1a] rounded-t-3xl pb-10 max-h-[70%]">
-        <View className="w-10 h-1 bg-[#555] rounded-full self-center mt-3 mb-1" />
-        <Text className="text-white text-[17px] font-semibold text-center py-3">
+      <TouchableWithoutFeedback onPress={onClose}>
+        <View className="flex-1" />
+      </TouchableWithoutFeedback>
+      <Animated.View style={{ transform: [{ translateY }] }} className="rounded-t-3xl pb-10 overflow-hidden">
+        <BlurView intensity={60} tint="dark" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.8 }} />
+        <View className="py-3 items-center" {...panResponder.panHandlers}>
+          <View className="w-10 h-1 bg-[#555] rounded-full" />
+        </View>
+        {/* <Text className="text-white text-[17px] font-semibold text-center py-3">
           Choose a Painting
-        </Text>
+        </Text> */}
         <FlatList
           data={paintings}
           keyExtractor={(p) => p.id}
-          numColumns={2}
-          contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 12 }}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 12, gap: 12 }}
+          snapToInterval={ITEM_WIDTH + 12}
+          decelerationRate="fast"
           renderItem={({ item }) => (
             <Pressable
-              className={`flex-1 m-1.5 rounded-xl bg-[#2a2a2a] overflow-hidden border-2 ${
+              unstable_pressDelay={50}
+              style={{ width: ITEM_WIDTH, height: ITEM_HEIGHT }}
+              className={`rounded-xl overflow-hidden border-2 ${
                 selectedId === item.id ? 'border-white' : 'border-transparent'
               }`}
               onPress={() => {
@@ -34,19 +69,22 @@ export function Gallery({ paintings, selectedId, onSelect, onClose }: Props) {
             >
               <Image
                 source={{ uri: item.uri }}
-                className="w-full h-[120px] bg-[#333]"
+                style={{ width: ITEM_WIDTH, height: ITEM_HEIGHT }}
+                className="bg-transparent"
                 resizeMode="cover"
               />
-              <Text className="text-white text-[13px] font-semibold px-2 pt-1.5" numberOfLines={1}>
-                {item.title}
-              </Text>
-              <Text className="text-[#aaa] text-[11px] px-2 pb-2" numberOfLines={1}>
-                {item.artist}
-              </Text>
+              {/* <View className="absolute bottom-0 left-0 right-0 px-2 py-2" style={{ backgroundColor: 'rgba(255,255,255,0.7)' }}>
+                <Text className="text-black text-[13px] font-semibold" numberOfLines={1}>
+                  {item.title}
+                </Text>
+                <Text className="text-black/70 text-[11px]" numberOfLines={1}>
+                  {item.artist}
+                </Text>
+              </View> */}
             </Pressable>
           )}
         />
-      </View>
+      </Animated.View>
     </Modal>
   );
 }

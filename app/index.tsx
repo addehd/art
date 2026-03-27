@@ -2,21 +2,21 @@ import '../global.css';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ViroARSceneNavigator } from '@viro-community/react-viro';
-import { ARScene, type ARDebugState } from './_components/ARScene';
-import { Gallery } from './_components/Gallery';
 import { PAINTINGS, type Painting } from '../data/paintings';
+import { ARScene, type ARDebugState } from './_components/ARScene';
+import Gallery from './_components/Gallery';
 
 export default function Index() {
   const [selectedPainting, setSelectedPainting] = useState<Painting | null>(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
-  const [detectingWall, setDetectingWall] = useState(false);
+  const [detectingWall, setDetectingWall] = useState(true); // auto-start wall detection on app open
   const [wallFound, setWallFound] = useState(false);
+  // One-way signal: set true → ARScene reads it and places the painting → onWallPlaced resets it.
   const [requestPlace, setRequestPlace] = useState(false);
+  // Incrementing this number tells ARScene to run resetAll() without needing an imperative ref.
   const [resetTrigger, setResetTrigger] = useState(0);
   const [debugState, setDebugState] = useState<ARDebugState | null>(null);
   const [distance, setDistance] = useState<number | null>(null);
-
-  console.log("hej hej hej");
 
   return (
     <View className="flex-1 bg-black">
@@ -47,7 +47,7 @@ export default function Index() {
               backgroundColor: 'rgba(0,0,0,0.75)',
               padding: 8,
               borderRadius: 8,
-              maxHeight: 120,
+              maxHeight: 200,
             },
           ]}
           pointerEvents="none"
@@ -58,15 +58,32 @@ export default function Index() {
           <Text style={{ color: '#00e664', fontSize: 11, fontFamily: 'monospace' }}>
             cross: {debugState.crosshairPos.map((n) => n.toFixed(2)).join(', ')}
           </Text>
+          <Text style={{ color: '#fa0', fontSize: 11, fontFamily: 'monospace' }}>
+            Δ pos-cross: {debugState.position.map((n, i) => (n - debugState.crosshairPos[i]).toFixed(2)).join(', ')}
+          </Text>
           <Text style={{ color: '#00e664', fontSize: 11, fontFamily: 'monospace' }}>
             locked: {debugState.crosshairLocked ? 'yes' : 'no'}
           </Text>
           <Text style={{ color: '#00e664', fontSize: 11, fontFamily: 'monospace' }}>
             wall: {debugState.wallAnchor ? 'set' : 'null'}
           </Text>
+          <Text style={{ color: '#4af', fontSize: 11, fontFamily: 'monospace' }}>
+            cam: {debugState.cameraPos.map((n) => n.toFixed(2)).join(', ')}
+          </Text>
+          <Text style={{ color: '#fa0', fontSize: 11, fontFamily: 'monospace' }}>
+            Δ cross-cam: {debugState.crosshairPos.map((n, i) => (n - debugState.cameraPos[i]).toFixed(2)).join(', ')}
+          </Text>
+          <Text style={{ color: '#4af', fontSize: 11, fontFamily: 'monospace' }}>
+            fwd: {debugState.forward.map((n) => n.toFixed(2)).join(', ')}
+          </Text>
+          <Text style={{ color: '#4af', fontSize: 11, fontFamily: 'monospace' }}>
+            dist: {debugState.distance.toFixed(2)} m
+          </Text>
         </View>
       )}
 
+      {/* box-none: the container itself ignores touches so AR gestures pass through,
+          but child Views (badges, dismiss button) still receive them. */}
       <View className="absolute top-14 left-0 right-0 items-center gap-2" pointerEvents="box-none">
         {(detectingWall || selectedPainting) && distance !== null && (
           <View className="flex-row items-center gap-1.5 bg-black/60 px-4 py-1.5 rounded-full" pointerEvents="none">
@@ -91,12 +108,14 @@ export default function Index() {
       <View className="absolute bottom-12 left-0 right-0 items-center gap-3">
         <View className="flex-row gap-3">
           {!detectingWall ? (
-            <Pressable
-              className="bg-[#00e664] px-7 py-3.5 rounded-full"
-              onPress={() => setDetectingWall(true)}
-            >
-              <Text className="text-base font-bold text-black">Detect Wall</Text>
-            </Pressable>
+            // Detect Wall btn hidden – wall detection auto-starts on app open
+            // <Pressable
+            //   className="bg-[#00e664] px-7 py-3.5 rounded-full"
+            //   onPress={() => setDetectingWall(true)}
+            // >
+            //   <Text className="text-base font-bold text-black">Detect Wall</Text>
+            // </Pressable>
+            null
           ) : (
             <>
               {!wallFound ? (
@@ -110,10 +129,10 @@ export default function Index() {
                   onPress={() => setRequestPlace(true)}
                   disabled={requestPlace}
                 >
-                  <Text className="text-base font-bold text-black">Place Here</Text>
+                  <Text className="text-base font-bold text-black">Place Heree</Text>
                 </Pressable>
               )}
-              <Pressable
+              {/* <Pressable
                 className="bg-white/20 border border-white/40 px-7 py-3.5 rounded-full"
                 onPress={() => {
                   setDetectingWall(false);
@@ -124,12 +143,12 @@ export default function Index() {
                 }}
               >
                 <Text className="text-base font-bold text-white">Cancel</Text>
-              </Pressable>
+              </Pressable> */}
             </>
           )}
 
           <Pressable className="bg-white px-7 py-3.5 rounded-full" onPress={() => setGalleryOpen(true)}>
-            <Text className="text-base font-bold text-black">🖼  Gallery</Text>
+            <Text className="text-base font-bold text-black">Gallery</Text>
           </Pressable>
         </View>
 

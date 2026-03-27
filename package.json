@@ -2,8 +2,8 @@
   "name": "my-expo-app",
   "version": "1.0.0",
   "scripts": {
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "start": "expo start",
     "prebuild": "expo prebuild",
     "lint": "eslint \"**/*.{js,jsx,ts,tsx}\" && prettier -c \"**/*.{js,jsx,ts,tsx,json}\"",
@@ -28,6 +28,7 @@
     "@tanstack/react-query-persist-client": "^5.90.22",
     "@viro-community/react-viro": "^2.41.1",
     "expo": "~54.0.30",
+    "expo-blur": "^55.0.10",
     "expo-constants": "~18.0.12",
     "expo-dev-client": "~6.0.20",
     "expo-linking": "~8.0.11",
