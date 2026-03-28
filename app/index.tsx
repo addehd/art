@@ -124,13 +124,14 @@ export default function Index() {
                   <Text className="text-base font-semibold text-white">Scanning…</Text>
                 </View>
               ) : (
-                <Pressable
-                  className="bg-[#00e664] px-7 py-3.5 rounded-full"
-                  onPress={() => setRequestPlace(true)}
-                  disabled={requestPlace}
-                >
-                  <Text className="text-base font-bold text-black">Place Heree</Text>
-                </Pressable>
+                null
+                // <Pressable
+                //   className="bg-[#00e664] px-7 py-3.5 rounded-full"
+                //   onPress={() => setRequestPlace(true)}
+                //   disabled={requestPlace}
+                // >
+                //   <Text className="text-base font-bold text-black">Place Heree</Text>
+                // </Pressable>
               )}
               {/* <Pressable
                 className="bg-white/20 border border-white/40 px-7 py-3.5 rounded-full"

@@ -83,6 +83,8 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
   const crosshairPosRef = useRef<[number, number, number]>([0, 0, -2]);
   const crosshairRotRef = useRef<[number, number, number]>([0, 0, 0]);
 
+  const wallAnchorRef = useRef<{ position: [number, number, number]; rotation: [number, number, number] } | null>(null);
+
   const wallFoundRef = useRef<(() => void) | undefined>(undefined);
   const detectingWallRef = useRef(detectingWall);
   const onDistanceUpdateRef = useRef(onDistanceUpdate);
@@ -130,6 +132,7 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
     setScale([1, 1, 1]);
     setRotation([0, 0, 0]);
     setWallAnchor(null);
+    wallAnchorRef.current = null;
     crosshairPosRef.current = [0, 0, -2];
     crosshairRotRef.current = [0, 0, 0];
     setCrosshairPos([0, 0, -2]);
@@ -205,6 +208,7 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
       console.log('[AR] wall anchor', { position: pos, rotation: rot, width: w, height: h, distanceToCamera: d?.toFixed(2) });
     }
     setWallAnchor({ position: pos, rotation: rot, w, h });
+    wallAnchorRef.current = { position: pos, rotation: rot };
 
     if (fallbackRef.current) clearTimeout(fallbackRef.current);
     wallFoundRef.current?.();
@@ -274,8 +278,31 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
     const [px, py, pz] = pos;
     const [fx, fy, fz] = forward;
     cameraPosRef.current = [px, py, pz];
-    const dist = 2; // Project crosshair 2 m in front of the camera
-    const newPos: [number, number, number] = [px + fx * dist, py + fy * dist, pz + fz * dist];
+    // Ray-plane intersection: cast the camera forward ray onto the detected wall plane.
+    // Falls back to 2m projection if no anchor yet or ray is parallel to the plane.
+    let newPos: [number, number, number];
+    const anchor = wallAnchorRef.current;
+    if (anchor) {
+      const ryRad = (anchor.rotation[1] * Math.PI) / 180;
+      // Wall normal derived from the anchor's Y rotation (vertical plane faces XZ direction)
+      const nx = Math.sin(ryRad);
+      const ny = 0;
+      const nz = Math.cos(ryRad);
+      const denom = nx * fx + ny * fy + nz * fz;
+      if (Math.abs(denom) > 1e-4) {
+        const [wpx, wpy, wpz] = anchor.position;
+        const t = ((wpx - px) * nx + (wpy - py) * ny + (wpz - pz) * nz) / denom;
+        if (t > 0.1) {
+          newPos = [px + fx * t, py + fy * t, pz + fz * t];
+        } else {
+          newPos = [px + fx * 2, py + fy * 2, pz + fz * 2];
+        }
+      } else {
+        newPos = [px + fx * 2, py + fy * 2, pz + fz * 2];
+      }
+    } else {
+      newPos = [px + fx * 2, py + fy * 2, pz + fz * 2];
+    }
     crosshairPosRef.current = newPos;
 
     const now = Date.now();
