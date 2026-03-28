@@ -106,6 +106,8 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
   const crosshairRotRef = useRef<[number, number, number]>([0, 0, 0]);
 
   const wallAnchorRef = useRef<WallAnchor | null>(null);
+  const lastPaintingRef = useRef(selectedPainting);
+  if (selectedPainting) lastPaintingRef.current = selectedPainting;
 
   const wallFoundRef = useRef<(() => void) | undefined>(undefined);
   const detectingWallRef = useRef(detectingWall);
@@ -426,27 +428,28 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
         />
       </ViroARPlane>
 
-      {selectedPainting && (
+      {/* Always mounted to avoid Viro unmount crash; hidden via scale when no painting selected */}
+      {lastPaintingRef.current && (
         <ViroNode
           position={position}
-          scale={scale}
+          scale={selectedPainting ? scale : [0.001, 0.001, 0.001]}
           rotation={rotation}
           dragType="FixedToWorld"
-          onDrag={(pos) => {
+          onDrag={selectedPainting ? (pos) => {
             const p = pos as [number, number, number];
             const paintAnchor = wallAnchorRef.current;
             const newPos = paintAnchor
               ? projectOntoPlane(p, paintAnchor.position, getWallNormal(paintAnchor))
               : ([p[0], p[1], position[2]] as [number, number, number]);
             setPosition(newPos);
-          }}
-          onPinch={handlePinch}
-          onRotate={handleRotate}
+          } : undefined}
+          onPinch={selectedPainting ? handlePinch : undefined}
+          onRotate={selectedPainting ? handleRotate : undefined}
         >
           <ViroImage
-            source={{ uri: selectedPainting.uri }}
-            width={selectedPainting.width}
-            height={selectedPainting.height}
+            source={{ uri: lastPaintingRef.current.uri }}
+            width={lastPaintingRef.current.width}
+            height={lastPaintingRef.current.height}
             resizeMode="ScaleToFill"
           />
         </ViroNode>
