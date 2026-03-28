@@ -63,6 +63,28 @@ interface ARSceneProps {
   };
 }
 
+type WallAnchor = {
+  position: [number, number, number];
+  rotation: [number, number, number];
+  alignment: 'Horizontal' | 'Vertical';
+};
+
+function getWallNormal(anchor: WallAnchor | null): [number, number, number] {
+  if (!anchor) return [0, 0, 1];
+  if (anchor.alignment === 'Horizontal') return [0, 1, 0];
+  const ry = (anchor.rotation[1] * Math.PI) / 180;
+  return [Math.sin(ry), 0, Math.cos(ry)];
+}
+
+function projectOntoPlane(
+  p: [number, number, number],
+  planePoint: [number, number, number],
+  normal: [number, number, number],
+): [number, number, number] {
+  const dist = (p[0] - planePoint[0]) * normal[0] + (p[1] - planePoint[1]) * normal[1] + (p[2] - planePoint[2]) * normal[2];
+  return [p[0] - dist * normal[0], p[1] - dist * normal[1], p[2] - dist * normal[2]];
+}
+
 export function ARScene({ sceneNavigator }: ARSceneProps) {
   const { selectedPainting, detectingWall, requestPlace, resetTrigger = 0, onWallFound, onWallPlaced, onDebugState, onDistanceUpdate } =
     sceneNavigator.viroAppProps ?? {};
@@ -83,7 +105,7 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
   const crosshairPosRef = useRef<[number, number, number]>([0, 0, -2]);
   const crosshairRotRef = useRef<[number, number, number]>([0, 0, 0]);
 
-  const wallAnchorRef = useRef<{ position: [number, number, number]; rotation: [number, number, number] } | null>(null);
+  const wallAnchorRef = useRef<WallAnchor | null>(null);
 
   const wallFoundRef = useRef<(() => void) | undefined>(undefined);
   const detectingWallRef = useRef(detectingWall);
@@ -194,7 +216,7 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
     }
   }, [position, crosshairPos, crosshairLocked, wallAnchor, cameraDebug, onDebugState]);
 
-  const handleAnchor = (anchor: any) => {
+  const handleAnchor = (alignment: 'Horizontal' | 'Vertical') => (anchor: any) => {
     if (!activeRef.current) return;
     const w = anchor.width ?? anchor.xExtent ?? 1;
     const h = anchor.height ?? anchor.yExtent ?? 1;
@@ -205,10 +227,10 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
       const d = cameraPosRef.current
         ? Math.sqrt((pos[0] - cameraPosRef.current[0]) ** 2 + (pos[1] - cameraPosRef.current[1]) ** 2 + (pos[2] - cameraPosRef.current[2]) ** 2)
         : null;
-      console.log('[AR] wall anchor', { position: pos, rotation: rot, width: w, height: h, distanceToCamera: d?.toFixed(2) });
+      console.log('[AR] wall anchor', { alignment, position: pos, rotation: rot, width: w, height: h, distanceToCamera: d?.toFixed(2) });
     }
     setWallAnchor({ position: pos, rotation: rot, w, h });
-    wallAnchorRef.current = { position: pos, rotation: rot };
+    wallAnchorRef.current = { position: pos, rotation: rot, alignment };
 
     if (fallbackRef.current) clearTimeout(fallbackRef.current);
     wallFoundRef.current?.();
@@ -283,11 +305,7 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
     let newPos: [number, number, number];
     const anchor = wallAnchorRef.current;
     if (anchor) {
-      const ryRad = (anchor.rotation[1] * Math.PI) / 180;
-      // Wall normal derived from the anchor's Y rotation (vertical plane faces XZ direction)
-      const nx = Math.sin(ryRad);
-      const ny = 0;
-      const nz = Math.cos(ryRad);
+      const [nx, ny, nz] = getWallNormal(anchor);
       const denom = nx * fx + ny * fy + nz * fz;
       if (Math.abs(denom) > 1e-4) {
         const [wpx, wpy, wpz] = anchor.position;
@@ -310,9 +328,15 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
     // The refs above are always current for logic; state drives visual updates only.
     if (now - lastCrosshairUpdateRef.current > 33) {
       lastCrosshairUpdateRef.current = now;
-      const rot = ct.rotation ?? ct.rot ?? update.rotation ?? update.rot;
-      const newRot = rot && rot.length >= 3 ? (rot as [number, number, number]) : null;
-      if (newRot) crosshairRotRef.current = newRot;
+      // When a wall anchor exists orient the crosshair to face the wall surface.
+      // Without an anchor, fall back to camera rotation so the crosshair tracks naturally.
+      const wallRot: [number, number, number] | null = anchor
+        ? [0, anchor.rotation[1], 0]
+        : (() => {
+            const rot = ct.rotation ?? ct.rot ?? update.rotation ?? update.rot;
+            return rot && rot.length >= 3 ? (rot as [number, number, number]) : null;
+          })();
+      if (wallRot) crosshairRotRef.current = wallRot;
       const [tx, ty, tz] = newPos;
       const d = Math.sqrt((tx - px) ** 2 + (ty - py) ** 2 + (tz - pz) ** 2);
       const logNow = __DEV__ && now - lastLogRef.current > 500;
@@ -321,7 +345,7 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
       // React reconciliations that exceed the max update depth.
       unstable_batchedUpdates(() => {
         setCrosshairPos(newPos);
-        if (newRot) setCrosshairRot(newRot);
+        if (wallRot) setCrosshairRot(wallRot);
         if (onDistanceUpdateRef.current) onDistanceUpdateRef.current(d);
         if (logNow) setCameraDebug({ cameraPos: [px, py, pz], forward: [fx, fy, fz], distance: d });
       });
@@ -337,12 +361,13 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
         scale={detectingWall ? [1, 1, 1] : [0.001, 0.001, 0.001]}
         dragType="FixedToWorld"
         onDrag={detectingWall ? (pos) => {
+          const p = pos as [number, number, number];
+          const dragAnchor = wallAnchorRef.current;
+          const newPos = dragAnchor
+            ? projectOntoPlane(p, dragAnchor.position, getWallNormal(dragAnchor))
+            : ([p[0], p[1], crosshairPosRef.current[2]] as [number, number, number]);
           crosshairLockedRef.current = true;
           setCrosshairLocked(true);
-          const p = pos as [number, number, number];
-          // Clamp Z to the current depth so the crosshair slides on the wall
-          // plane rather than drifting toward or away from the camera.
-          const newPos: [number, number, number] = [p[0], p[1], crosshairPosRef.current[2]];
           crosshairPosRef.current = newPos;
           setCrosshairPos(newPos);
         } : undefined}
@@ -373,8 +398,8 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
         minHeight={0.2}
         minWidth={0.2}
         alignment="Horizontal"
-        onAnchorFound={handleAnchor}
-        onAnchorUpdated={handleAnchor}
+        onAnchorFound={handleAnchor('Horizontal')}
+        onAnchorUpdated={handleAnchor('Horizontal')}
       >
         <ViroQuad
           position={[0, 0, 0]}
@@ -389,8 +414,8 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
         minHeight={0.2}
         minWidth={0.2}
         alignment="Vertical"
-        onAnchorFound={handleAnchor}
-        onAnchorUpdated={handleAnchor}
+        onAnchorFound={handleAnchor('Vertical')}
+        onAnchorUpdated={handleAnchor('Vertical')}
       >
         <ViroQuad
           position={[0, 0, 0]}
@@ -409,7 +434,11 @@ export function ARScene({ sceneNavigator }: ARSceneProps) {
           dragType="FixedToWorld"
           onDrag={(pos) => {
             const p = pos as [number, number, number];
-            setPosition([p[0], p[1], position[2]]);
+            const paintAnchor = wallAnchorRef.current;
+            const newPos = paintAnchor
+              ? projectOntoPlane(p, paintAnchor.position, getWallNormal(paintAnchor))
+              : ([p[0], p[1], position[2]] as [number, number, number]);
+            setPosition(newPos);
           }}
           onPinch={handlePinch}
           onRotate={handleRotate}
