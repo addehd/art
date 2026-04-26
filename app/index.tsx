@@ -1,12 +1,14 @@
 import '../global.css';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ViroARSceneNavigator } from '@viro-community/react-viro';
 import { PAINTINGS, type Painting } from '../data/paintings';
 import { ARScene, type ARDebugState } from './_components/ARScene';
 import Gallery from './_components/Gallery';
 
 export default function Index() {
+  const insets = useSafeAreaInsets();
   const [selectedPainting, setSelectedPainting] = useState<Painting | null>(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [detectingWall, setDetectingWall] = useState(true); // auto-start wall detection on app open
@@ -38,18 +40,7 @@ export default function Index() {
 
       {__DEV__ && debugState && (
         <View
-          style={[
-            StyleSheet.absoluteFill,
-            {
-              top: 100,
-              left: 8,
-              right: 8,
-              backgroundColor: 'rgba(0,0,0,0.75)',
-              padding: 8,
-              borderRadius: 8,
-              maxHeight: 200,
-            },
-          ]}
+          style={{ position: 'absolute', top: insets.top + 8, left: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.75)', padding: 8, borderRadius: 8 }}
           pointerEvents="none"
         >
           <Text style={{ color: '#00e664', fontSize: 11, fontFamily: 'monospace' }}>
@@ -85,14 +76,6 @@ export default function Index() {
       {/* box-none: the container itself ignores touches so AR gestures pass through,
           but child Views (badges, dismiss button) still receive them. */}
       <View className="absolute top-14 left-0 right-0 items-center gap-2" pointerEvents="box-none">
-        {(detectingWall || selectedPainting) && distance !== null && (
-          <View className="flex-row items-center gap-1.5 bg-black/60 px-4 py-1.5 rounded-full" pointerEvents="none">
-            <Text className="text-[#00e664] text-xs">◎</Text>
-            <Text className="text-white text-xs font-semibold">{distance.toFixed(2)} m</Text>
-            <Text className="text-white/50 text-xs">to wall</Text>
-          </View>
-        )}
-
         {selectedPainting && (
           <View className="flex-row items-center gap-2.5 bg-black/55 px-4 py-2 rounded-full">
             <Text className="text-white text-[15px] font-semibold max-w-[220px]" numberOfLines={1}>

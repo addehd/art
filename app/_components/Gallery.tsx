@@ -39,8 +39,8 @@ export default function Gallery({ paintings, selectedId, onSelect, onClose }: Pr
       <TouchableWithoutFeedback onPress={onClose}>
         <View className="flex-1" />
       </TouchableWithoutFeedback>
-      <Animated.View style={{ transform: [{ translateY }], backgroundColor: 'white' }} className="pb-10 overflow-hidden">
-        {/* <BlurView intensity={100} tint="systemMaterialLight" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} /> */}
+      <Animated.View style={{ transform: [{ translateY }], backgroundColor: 'rgba(255,255,255,0.7)' }} className="pb-10 overflow-hidden">
+        <BlurView intensity={40} tint="systemMaterialLight" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
         <View className="py-3 items-center" {...panResponder.panHandlers}>
           <View className="w-10 h-1 bg-[#555] rounded-full" />
         </View>
