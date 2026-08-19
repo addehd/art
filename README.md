@@ -48,8 +48,12 @@ Open the dev client app on your iPhone → connect to Metro (Mac and iPhone must
 
 ## Publishing
 
+Local:
+
 ```sh
 eas build --platform ios --profile production
 ```
 
-Submit via [App StoreConnect](https://appstoreconnect.apple.com). Or `--auto-submit` to upload directly.
+Submit via [App Store Connect](https://appstoreconnect.apple.com), or `--auto-submit` to upload to TestFlight.
+
+GitHub Actions: **Actions → iOS Deploy → Run workflow**. Uses EAS (`eas.json` production submit). Add repo secret `EXPO_TOKEN` from [Expo access tokens](https://expo.dev/accounts/addehd11/settings/access-tokens).
