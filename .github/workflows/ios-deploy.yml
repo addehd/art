@@ -1,0 +1,80 @@
+# iOS deploy via EAS (Expo Application Services).
+# The GitHub runner only triggers the job; the iOS binary is built on EAS.
+#
+# Required GitHub secret:
+#   EXPO_TOKEN — Expo access token for account addehd11
+#   https://expo.dev/accounts/addehd11/settings/access-tokens
+#
+# Production submit uses eas.json submit.production (appleTeamId + ascAppId).
+# iOS auto-submit goes to TestFlight, not App Store review.
+
+name: iOS Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: EAS build profile
+        required: true
+        type: choice
+        default: production
+        options:
+          - production
+          - development
+      submit:
+        description: Submit production build to App Store Connect (TestFlight)
+        required: true
+        type: boolean
+        default: true
+
+concurrency:
+  group: ios-deploy-${{ github.ref }}-${{ inputs.profile }}
+  cancel-in-progress: false
+
+jobs:
+  ios:
+    name: iOS ${{ inputs.profile }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check EXPO_TOKEN
+        run: |
+          if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
+            echo "::error::Add an EXPO_TOKEN repository secret (Expo access token for addehd11)."
+            echo "Create one at https://expo.dev/accounts/addehd11/settings/access-tokens"
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: yarn
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          packager: yarn
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Build iOS on EAS
+        env:
+          EAS_PROFILE: ${{ inputs.profile }}
+          EAS_SUBMIT: ${{ inputs.submit }}
+        run: |
+          if [ "$EAS_PROFILE" = "production" ] && [ "$EAS_SUBMIT" = "true" ]; then
+            eas build --platform ios --profile production --non-interactive --no-wait --auto-submit
+          else
+            eas build --platform ios --profile "$EAS_PROFILE" --non-interactive --no-wait
+          fi

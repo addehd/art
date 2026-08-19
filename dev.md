@@ -55,3 +55,7 @@ Open the dev client app on your iPhone → connect to Metro (Mac and iPhone must
 3. **`eas submit --platform ios --latest --profile production`** (uploads the build you just made)
 
 So each deploy is a new patch number, then an iOS production build, then App Store Connect submission. To change **major** or **minor** versions, edit `expo.version` in `app.json` before running, or adjust the script.
+
+### GitHub Actions
+
+**Actions → iOS Deploy → Run workflow**. Profile `production` (optional TestFlight submit) or `development`. Needs repo secret `EXPO_TOKEN`. Build numbers come from EAS (`autoIncrement` + remote `appVersionSource`); this does not bump `expo.version` in `app.json`.
